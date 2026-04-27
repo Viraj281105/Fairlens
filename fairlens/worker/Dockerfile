@@ -10,12 +10,17 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends gcc build-essential \
     && rm -rf /var/lib/apt/lists/*
 
-# Assuming backend requirements covers worker dependencies
-COPY ../backend/requirements/base.txt /app/requirements/
+# Install dependencies
+COPY backend/requirements/base.txt /app/requirements/
+
 RUN pip install --upgrade pip \
     && pip install --no-cache-dir -r requirements/base.txt
 
-COPY . /app/
-# Pipeline logic will be volume mounted or copied in production
+# ✅ Copy BOTH backend + worker
+COPY backend /app/backend
+COPY worker /app/worker
+
+# Move into worker directory for execution
+WORKDIR /app/worker
 
 CMD ["celery", "-A", "celery_app.app", "worker", "--loglevel=info"]

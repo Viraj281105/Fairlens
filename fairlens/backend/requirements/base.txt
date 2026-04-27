@@ -1,22 +1,36 @@
-fastapi[all]>=0.110.0
-uvicorn>=0.27.1
-gunicorn>=21.2.0
-celery>=5.3.6
-redis>=5.0.1
-pydantic-settings>=2.2.1
+# ---------------------------
+# Core Backend
+# ---------------------------
+fastapi==0.136.1
+uvicorn==0.46.0
+gunicorn==25.3.0
+celery==5.6.3
+redis==7.4.0
+pydantic-settings==2.14.0
 
+# ---------------------------
 # AI/ML Fairness
-fairlearn>=0.10.0
-aif360>=0.6.0
-dice-ml>=0.11
+# ---------------------------
+fairlearn==0.13.0
+aif360==0.6.1
+dice-ml==0.12
 
+# ---------------------------
 # GCP / Firebase
-google-cloud-firestore>=2.15.0
-google-cloud-storage>=2.14.0
-firebase-admin>=6.5.0
-google-generativeai>=0.4.1
+# ---------------------------
+google-cloud-firestore==2.27.0
+google-cloud-storage==3.10.1
+firebase-admin==7.4.0
 
+# ✅ CRITICAL FIX (dependency chaos killer)
+google-generativeai==0.8.6
+google-ai-generativelanguage==0.6.15
+grpcio==1.80.0
+protobuf==5.29.3
+
+# ---------------------------
 # Data Processing
-pandas>=2.2.0
-numpy>=1.26.4
-scikit-learn>=1.4.1.post1
+# ---------------------------
+pandas==3.0.2
+numpy==2.4.4
+scikit-learn==1.8.0

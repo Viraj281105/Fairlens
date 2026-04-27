@@ -1,0 +1,11 @@
+.git
+node_modules
+__pycache__
+*.pyc
+.env
+docs
+*.pptx
+*.docx
+*.zip
+frontend/.next
+frontend/node_modules

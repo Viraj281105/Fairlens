@@ -3,8 +3,8 @@ version: '3.8'
 services:
   api:
     build:
-      context: ../backend
-      dockerfile: Dockerfile
+      context: ..
+      dockerfile: backend/Dockerfile
     container_name: fairlens_api
     ports:
       - "8000:8000"
@@ -19,12 +19,12 @@ services:
     volumes:
       - ../backend:/app
     restart: unless-stopped
-    command: ["/bin/sh", "/app/entrypoint.sh"]
+    command: [ "/bin/sh", "/app/entrypoint.sh" ]
 
   worker:
     build:
-      context: ../worker
-      dockerfile: Dockerfile
+      context: ..
+      dockerfile: worker/Dockerfile
     container_name: fairlens_worker
     env_file:
       - .env
@@ -38,7 +38,7 @@ services:
       - ../worker:/app
       - ../backend/app/pipeline:/app/pipeline # Share pipeline logic with worker
     restart: unless-stopped
-    command: ["celery", "-A", "celery_app.app", "worker", "--loglevel=info", "--pool=threads"]
+    command: [ "celery", "-A", "celery_app.app", "worker", "--loglevel=info", "--pool=threads" ]
 
   redis:
     image: redis:7-alpine
@@ -47,15 +47,15 @@ services:
       - "6379:6379"
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: [ "CMD", "redis-cli", "ping" ]
       interval: 5s
       timeout: 3s
       retries: 5
 
   frontend:
     build:
-      context: ../frontend
-      dockerfile: Dockerfile
+      context: ..
+      dockerfile: frontend/Dockerfile
     container_name: fairlens_frontend
     ports:
       - "3000:3000"
@@ -69,3 +69,4 @@ services:
       - ../frontend:/app
       - /app/node_modules
     restart: unless-stopped
+    command: [ "npm", "run", "dev" ]
