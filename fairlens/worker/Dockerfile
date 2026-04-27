@@ -23,4 +23,9 @@ COPY worker /app/worker
 # Move into worker directory for execution
 WORKDIR /app/worker
 
+# Create a non-root user to avoid Celery SecurityWarning
+RUN groupadd -r celerygroup && useradd -r -g celerygroup celeryuser \
+    && chown -R celeryuser:celerygroup /app
+USER celeryuser
+
 CMD ["celery", "-A", "celery_app.app", "worker", "--loglevel=info"]

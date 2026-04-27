@@ -55,7 +55,7 @@ services:
   frontend:
     build:
       context: ..
-      dockerfile: frontend/Dockerfile
+      dockerfile: frontend/Dockerfile.dev
     container_name: fairlens_frontend
     ports:
       - "3000:3000"
