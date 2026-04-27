@@ -3,12 +3,21 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import uuid
 
-# In a real app, this would be imported from worker.celery_app and worker.tasks.orchestrator
-# For now, we stub the task trigger
+import logging
+from .celery_client import celery_app
+import redis
+import os
+
+# Configure standard logging
+logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
+logger = logging.getLogger(__name__)
+
 def trigger_audit_pipeline(job_id: str, dataset_id: str):
-    # This simulates a celery task push
-    # e.g., run_full_audit_pipeline.delay(job_id, dataset_id)
-    print(f"Triggering pipeline for job {job_id} on dataset {dataset_id}")
+    """Triggers the Celery task by name."""
+    logger.info(f"Sending task 'run_full_audit_pipeline' to Celery for job {job_id}, dataset {dataset_id}")
+    task = celery_app.send_task("tasks.orchestrator.run_full_audit_pipeline", args=[job_id, dataset_id])
+    return task.id
+
 
 app = FastAPI(
     title="FairLens API",
@@ -30,7 +39,17 @@ class AuditStartRequest(BaseModel):
 
 @app.get("/health")
 def health_check():
-    return {"status": "healthy"}
+    health_status = {"status": "healthy", "redis": "unknown"}
+    try:
+        redis_url = os.environ.get("REDIS_URL", "redis://localhost:6379/0")
+        r = redis.from_url(redis_url)
+        r.ping()
+        health_status["redis"] = "connected"
+    except Exception as e:
+        logger.error(f"Redis health check failed: {e}")
+        health_status["redis"] = "disconnected"
+        health_status["status"] = "degraded"
+    return health_status
 
 @app.post("/upload")
 async def upload_dataset(file: UploadFile = File(...)):
@@ -41,14 +60,23 @@ async def upload_dataset(file: UploadFile = File(...)):
 @app.post("/audit/start")
 async def start_audit(request: AuditStartRequest):
     job_id = str(uuid.uuid4())
+    logger.info(f"Starting audit for dataset {request.dataset_id}, assigning job {job_id}")
     # Trigger async celery worker
-    trigger_audit_pipeline(job_id, request.dataset_id)
-    return {"message": "Audit started", "job_id": job_id}
+    task_id = trigger_audit_pipeline(job_id, request.dataset_id)
+    return {"message": "Audit started", "job_id": job_id, "task_id": task_id}
 
 @app.get("/audit/{job_id}")
 def get_audit_status(job_id: str):
-    # Stub: Check Redis/Firestore for job status
-    return {"job_id": job_id, "status": "processing"}
+    # In this phase, we map job_id -> task_id or assume job_id is task_id if passed.
+    # For now, let's just query Celery for any AsyncResult using the provided ID.
+    # Ideally, job_id would map to a task_id in Redis/Firestore.
+    from celery.result import AsyncResult
+    res = AsyncResult(job_id, app=celery_app)
+    return {
+        "job_id": job_id,
+        "task_status": res.status,
+        "result": res.result if res.ready() else None
+    }
 
 @app.get("/report/{job_id}")
 def get_audit_report(job_id: str):

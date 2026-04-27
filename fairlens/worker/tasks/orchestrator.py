@@ -1,4 +1,4 @@
-from celery_app import app
+from worker.celery_app import app
 import sys
 import os
 
@@ -17,12 +17,17 @@ from pipeline import (
     report_generation
 )
 
-@app.task(bind=True)
+import logging
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+
+@app.task(bind=True, autoretry_for=(Exception,), retry_kwargs={'max_retries': 3, 'countdown': 5})
 def run_full_audit_pipeline(self, job_id: str, dataset_id: str):
     """
     Master orchestrator task for the bias auditing pipeline.
     """
-    print(f"Starting audit pipeline for job: {job_id}, dataset: {dataset_id}")
+    logger.info(f"Starting audit pipeline for job: {job_id}, dataset: {dataset_id}")
     
     try:
         # 1. Ingest Data
@@ -66,9 +71,11 @@ def run_full_audit_pipeline(self, job_id: str, dataset_id: str):
             "debiased_data": debiased_data
         })
         
-        print(f"Pipeline complete for job {job_id}.")
+        logger.info(f"Pipeline complete for job {job_id}.")
         return report
 
     except Exception as e:
-        print(f"Pipeline failed for job {job_id}: {str(e)}")
+        logger.error(f"Pipeline failed for job {job_id}: {str(e)}", exc_info=True)
+        # Update state so that failure can be queried cleanly
+        self.update_state(state='FAILURE', meta={'exc_type': type(e).__name__, 'exc_message': str(e)})
         raise e

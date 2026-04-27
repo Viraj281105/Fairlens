@@ -52,6 +52,21 @@ services:
       timeout: 3s
       retries: 5
 
+  flower:
+    image: mher/flower:3.0.0
+    container_name: fairlens_flower
+    environment:
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - FLOWER_PORT=5555
+    ports:
+      - "5555:5555"
+    depends_on:
+      redis:
+        condition: service_healthy
+      worker:
+        condition: service_started
+    restart: unless-stopped
+
   frontend:
     build:
       context: ..
