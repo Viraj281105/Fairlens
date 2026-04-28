@@ -8,14 +8,17 @@ from .celery_client import celery_app
 import redis
 import os
 
-# Configure standard logging
-logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
+# Configure structured logging
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s"
+)
 logger = logging.getLogger(__name__)
 
 def trigger_audit_pipeline(job_id: str, dataset_id: str):
     """Triggers the Celery task by name."""
-    logger.info(f"Sending task 'run_full_audit_pipeline' to Celery for job {job_id}, dataset {dataset_id}")
     task = celery_app.send_task("tasks.orchestrator.run_full_audit_pipeline", args=[job_id, dataset_id])
+    logger.info(f"[JOB={job_id}] TASK_QUEUED: task_id={task.id}, dataset_id={dataset_id}")
     return task.id
 
 
