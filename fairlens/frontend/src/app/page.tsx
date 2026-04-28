@@ -258,14 +258,18 @@ export default function Home() {
                 <p className="text-sm text-gray-600">Your fairness audit has completed successfully.</p>
               </div>
 
-              {taskData?.result && (
+            // AFTER
+              {taskData?.result !== undefined && (
                 <div className="bg-gray-50 rounded-lg border border-gray-200 p-4 overflow-auto max-h-96">
                   <pre className="text-xs text-gray-700 whitespace-pre-wrap break-words font-mono">
+<<<<<<< HEAD
                     {JSON.stringify(taskData.result, null, 2) as unknown as string}
+=======
+                    {JSON.stringify(taskData.result as Record<string, unknown>, null, 2)}
+>>>>>>> 4e03ea3182d64bc9b39b149755c387ec7e327a45
                   </pre>
                 </div>
               )}
-
               {taskId && (
                 <div className="mt-4 pt-4 border-t border-gray-200">
                   <p className="text-xs text-gray-600">
