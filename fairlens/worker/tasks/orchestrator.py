@@ -23,7 +23,7 @@ def _log_with_task_id(task_id: str, job_id: str, level: str, message: str, **ext
     log_msg = f"[TASK={task_id}] [JOB={job_id}] {message}"
     getattr(logger, level)(log_msg, extra=extra)
 
-@app.task(bind=True, autoretry_for=(Exception,), retry_kwargs={'max_retries': 3, 'countdown': 5})
+@app.task(bind=True)
 def run_full_audit_pipeline(self, job_id: str, dataset_id: str):
     """
     Master orchestrator task for the bias auditing pipeline.
