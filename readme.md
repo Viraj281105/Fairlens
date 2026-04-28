@@ -1,28 +1,29 @@
-Optimizing tool selection...# FairLens — Distributed AI/ML Audit Pipeline
-
-```markdown
 # FairLens
 
 > Scalable, asynchronous AI/ML audit pipeline for bias detection, fairness analysis, and model governance.
 
+[![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
+[![Docker](https://img.shields.io/badge/docker-ready-brightgreen.svg)](infra/docker-compose.yml)
+[![Google Solution Challenge](https://img.shields.io/badge/Google%20Solution%20Challenge-2026-orange.svg)](https://developers.google.com/community/gdsc-solution-challenge)
+
 ---
 
-## 📋 Overview
+## Overview
 
 FairLens is a distributed system designed to audit machine learning models for bias, unfairness, and intersectional disparities. Using a microservices architecture with asynchronous task processing, it enables organizations to scale bias detection and fairness analysis across large datasets without blocking operations.
 
-The system processes complex ML audits as background jobs, tracks progress in real-time, and delivers detailed fairness reports—all through a clean, modern web interface.
+The system processes complex ML audits as background jobs, tracks progress in real-time, and delivers detailed fairness reports — all through a clean, modern web interface.
 
 ---
 
-## 🏗️ Architecture
+## Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │                      Frontend (Next.js)                         │
 │                  http://localhost:3000                          │
 └────────────────────────────┬────────────────────────────────────┘
-                             │
+                             │ HTTP
                              ▼
 ┌─────────────────────────────────────────────────────────────────┐
 │                   FastAPI Backend                               │
@@ -36,42 +37,40 @@ The system processes complex ML audits as background jobs, tracks progress in re
                     └────────┬────────┘
                              │
          ┌───────────────────┼───────────────────┐
-         │                   │                   │
          ▼                   ▼                   ▼
     ┌─────────┐         ┌─────────┐         ┌─────────┐
     │ Worker 1│         │ Worker 2│         │ Worker N│
     │ Celery  │         │ Celery  │         │ Celery  │
     └────┬────┘         └────┬────┘         └────┬────┘
-         │                   │                   │
          └───────────────────┼───────────────────┘
                              │
                     ┌────────▼────────┐
                     │ Pipeline Engine │
                     │ • Bias Detection│
-                    │ • Metrics       │
-                    │ • Reports       │
+                    │ • Fairness Calc │
+                    │ • Report Gen    │
                     └─────────────────┘
 ```
 
 ---
 
-## 🛠️ Tech Stack
+## Tech Stack
 
 | Component | Technology | Purpose |
-|-----------|-----------|---------|
-| **Backend API** | FastAPI | RESTful service for task submission & status polling |
-| **Async Processing** | Celery | Distributed task queue for ML audit jobs |
-| **Message Broker** | Redis | Job queueing and inter-service communication |
-| **Frontend** | Next.js + TypeScript | Modern UI for data upload and result visualization |
-| **Orchestration** | Docker Compose | Multi-container deployment & networking |
-| **Monitoring** | Flower (optional) | Real-time worker & task dashboard |
+|-----------|------------|---------|
+| Backend API | FastAPI | RESTful service for task submission & status polling |
+| Async Processing | Celery | Distributed task queue for ML audit jobs |
+| Message Broker | Redis | Job queueing and inter-service communication |
+| Frontend | Next.js + TypeScript | Modern UI for data upload and result visualization |
+| Orchestration | Docker Compose | Multi-container deployment & networking |
+| Monitoring | Flower (optional) | Real-time worker & task dashboard |
 
 ---
 
-## ✨ Key Features
+## Key Features
 
 - **Asynchronous Task Processing** — Submit long-running ML audits without blocking the API
-- **Real-Time Status Tracking** — Track task lifecycle: PENDING → STARTED → SUCCESS/FAILURE
+- **Real-Time Status Tracking** — Track task lifecycle: `PENDING → STARTED → SUCCESS/FAILURE`
 - **Distributed Architecture** — Scale workers horizontally; Redis brokers all job requests
 - **Clean API Design** — Standardized JSON responses with consistent error handling
 - **Failure-Safe Handling** — Graceful error recovery; no silent failures or data loss
@@ -81,70 +80,76 @@ The system processes complex ML audits as background jobs, tracks progress in re
 
 ---
 
-## 🔄 How It Works
+## How It Works
 
-### Step-by-Step Flow
+### Request lifecycle
 
-1. **User Uploads Data** — Frontend sends dataset to `/upload` endpoint
-2. **Task Created** — Backend creates Celery task and returns `task_id`
-3. **Job Queued** — Redis stores task in queue; workers begin processing
-4. **Processing Starts** — Worker pulls task, runs ML audit pipeline
-5. **Real-Time Polling** — Frontend polls `/status/{task_id}` to track progress
-6. **Result Delivered** — Upon completion, user retrieves fairness metrics and report via `/result/{task_id}`
+1. **Upload** — Frontend sends dataset to `/upload` endpoint
+2. **Queue** — Backend creates a Celery task and returns a `task_id`; Redis stores the job
+3. **Process** — A worker pulls the task and runs the full ML audit pipeline
+4. **Poll** — Frontend polls `/status/{task_id}` to track progress in real time
+5. **Retrieve** — On completion, results are fetched via `/result/{task_id}`
 
-### Status Lifecycle
+### Status lifecycle
 
 ```
-PENDING → STARTED → (RETRY) → SUCCESS
-                     └─────→ FAILURE
+PENDING → STARTED → SUCCESS
+                  └──(RETRY)──→ FAILURE
 ```
+
+| Status | Meaning |
+|--------|---------|
+| `PENDING` | Waiting in queue |
+| `STARTED` | Worker actively processing |
+| `SUCCESS` | Audit complete; results ready |
+| `FAILURE` | Error during processing (reason included) |
+| `RETRY` | Automatic retry in progress |
 
 ---
 
-## 🚀 Getting Started
+## Getting Started
 
 ### Prerequisites
 
-- **Docker** & **Docker Compose** installed
-- **Git** (for cloning)
-- Minimum 2GB RAM available
+- Docker & Docker Compose
+- Git
+- Minimum 2 GB RAM
 
-### Run the Project
+### Run
 
 ```bash
-# Navigate to infrastructure directory
+# Clone and navigate to the infra directory
 cd fairlens/infra
 
-# Start all services (builds & deploys)
+# Build and start all services (~30 seconds)
 docker compose up --build
-
-# Services will be ready in ~30 seconds
 ```
 
-### Access Services
+### Services
 
-| Service | URL | Purpose |
-|---------|-----|---------|
-| **Frontend** | http://localhost:3000 | Web UI for uploads & results |
-| **Backend API** | http://localhost:8000 | REST API endpoint |
-| **API Docs** | http://localhost:8000/docs | Interactive Swagger documentation |
-| **Flower** | http://localhost:5555 | Worker dashboard (optional) |
+| Service | URL | Description |
+|---------|-----|-------------|
+| Frontend | http://localhost:3000 | Web UI for uploads & results |
+| Backend API | http://localhost:8000 | REST API |
+| API Docs | http://localhost:8000/docs | Interactive Swagger docs |
+| Flower | http://localhost:5555 | Worker dashboard (optional) |
 
-### Health Check
+### Health check
 
 ```bash
 curl http://localhost:8000/health
-# Response: {"status": "healthy", "services": {...}}
+# {"status": "healthy", "services": {"api": "up", "redis": "up", "workers": 3}}
 ```
 
 ---
 
-## 📡 API Endpoints
+## API Reference
 
-### POST `/upload`
+### `POST /upload`
+
 Submit a dataset for fairness audit.
 
-**Request:**
+**Request body**
 ```json
 {
   "file": "<binary data>",
@@ -153,7 +158,7 @@ Submit a dataset for fairness audit.
 }
 ```
 
-**Response (202 Accepted):**
+**Response — 202 Accepted**
 ```json
 {
   "task_id": "abc-123-def",
@@ -164,10 +169,10 @@ Submit a dataset for fairness audit.
 
 ---
 
-### GET `/status/{task_id}`
-Check audit progress in real-time.
+### `GET /status/{task_id}`
 
-**Response:**
+Check audit progress in real time.
+
 ```json
 {
   "task_id": "abc-123-def",
@@ -178,19 +183,12 @@ Check audit progress in real-time.
 }
 ```
 
-**Status Values:**
-- `PENDING` — Waiting in queue
-- `STARTED` — Worker actively processing
-- `SUCCESS` — Audit complete; results ready
-- `FAILURE` — Error during processing (with reason)
-- `RETRY` — Automatic retry in progress
-
 ---
 
-### GET `/result/{task_id}`
+### `GET /result/{task_id}`
+
 Retrieve completed audit results.
 
-**Response (200 OK):**
 ```json
 {
   "task_id": "abc-123-def",
@@ -207,10 +205,10 @@ Retrieve completed audit results.
 
 ---
 
-### GET `/health`
+### `GET /health`
+
 System health check.
 
-**Response:**
 ```json
 {
   "status": "healthy",
@@ -224,34 +222,32 @@ System health check.
 
 ---
 
-## 📊 Demo Flow
+## Demo
 
-1. **Open** http://localhost:3000
-2. **Upload** a CSV dataset with ML predictions
-3. **Select** protected attributes (age, gender, race, etc.)
-4. **Submit** → Get `task_id`
-5. **Watch** real-time progress bar
-6. **View** fairness metrics and bias report
-7. **Export** as PDF or JSON
+1. Open http://localhost:3000
+2. Upload a CSV with ML predictions
+3. Select protected attributes (age, gender, race, etc.)
+4. Submit → receive a `task_id`
+5. Watch the real-time progress bar
+6. View fairness metrics and bias report
+7. Export as PDF or JSON
 
 ---
 
-## 🧪 Testing & Reliability
+## Testing
 
-### Test Suites Included
-
-- **Load Testing** (`test_load.py`) — Handles 100+ concurrent audits
-- **Recovery Testing** (`test_recovery.py`) — Verifies graceful restart & data persistence
-- **Chaos Testing** (`test_chaos.py`) — Simulates worker failures and network issues
-- **Idempotency Testing** (`test_idempotency.py`) — Ensures duplicate submissions are safe
-
-### Run Tests
+| Suite | File | Coverage |
+|-------|------|----------|
+| Load testing | `test_load.py` | 100+ concurrent audits |
+| Recovery testing | `test_recovery.py` | Graceful restart & data persistence |
+| Chaos testing | `test_chaos.py` | Worker failures & network issues |
+| Idempotency testing | `test_idempotency.py` | Safe duplicate submissions |
 
 ```bash
-# All tests
+# Run all tests
 ./scripts/run_tests.sh
 
-# Specific suite
+# Run a specific suite
 pytest tests/phase2_5/test_load.py -v
 
 # With coverage report
@@ -260,74 +256,80 @@ pytest tests/ --cov=fairlens/backend/app
 
 ---
 
-## 📁 Project Structure
+## Project Structure
 
 ```
 fairlens/
-├── backend/                # FastAPI application
+├── backend/                 # FastAPI application
 │   ├── app/
-│   │   ├── main.py         # API routes
+│   │   ├── main.py          # API routes
 │   │   ├── celery_client.py
-│   │   └── pipeline/       # ML audit pipeline
-│   ├── requirements/       # Dependencies
+│   │   └── pipeline/        # ML audit pipeline
+│   ├── requirements/
 │   └── Dockerfile
 │
-├── frontend/               # Next.js web UI
-│   ├── src/app/           # React components
+├── frontend/                # Next.js web UI
+│   ├── src/app/             # React components
 │   ├── package.json
 │   └── Dockerfile
 │
-├── worker/                 # Celery worker service
+├── worker/                  # Celery worker service
 │   ├── celery_app.py
 │   ├── tasks/
-│   │   └── orchestrator.py # Job orchestration
+│   │   └── orchestrator.py  # Job orchestration
 │   └── Dockerfile
 │
 ├── infra/
-│   └── docker-compose.yml  # Multi-service orchestration
+│   └── docker-compose.yml   # Multi-service orchestration
 │
-└── tests/                  # Comprehensive test suite
+└── tests/
     ├── api/
     ├── e2e/
-    ├── phase2_5/          # Reliability tests
+    ├── phase2_5/            # Reliability test suites
     └── worker/
 ```
 
 ---
 
-## 🔮 Future Improvements
+## Scaling
 
-- **Advanced Retry Strategies** — Exponential backoff with configurable policies
-- **Queue Monitoring Dashboard** — Real-time queue depth and worker utilization metrics
-- **Cloud Deployment** — Pre-configured Azure Container Instances / AWS ECS templates
-- **Enhanced Observability** — Prometheus metrics, Grafana dashboards, structured logging
-- **Batch Processing** — Optimize for large-scale, multi-dataset audits
-- **Custom Metrics** — User-defined fairness metrics beyond baseline set
-- **Model Versioning** — Track audit results across model iterations
-
----
-
-## 📝 Notes
-
-- **Data Privacy** — All datasets processed locally; no data sent to external services
-- **Scalability** — Add workers via `docker compose up --scale worker=5`
-- **Configuration** — Edit `.env` files in `infra/` for custom settings
-- **Logs** — View worker logs: `docker logs <worker_container_id>`
-
----
-
-## 🙌 Contributing
-
-Found a bug? Have an improvement? Open an issue or submit a pull request.
-
----
-
-## 📄 License
-
-This project is part of the Google Solution Challenge 2026.
-
----
-
-**Made for fairness. Built for scale.**
+```bash
+# Scale to 5 workers
+docker compose up --scale worker=5
 ```
-</markdown></markdown>You've used 77% of your session rate limit. Your session rate limit will reset on April 28 at 2:15 PM. [Learn More](https://aka.ms/github-copilot-rate-limit-error)
+
+---
+
+## Roadmap
+
+- [ ] Exponential backoff with configurable retry policies
+- [ ] Real-time queue depth and worker utilization dashboard
+- [ ] Azure Container Instances / AWS ECS deployment templates
+- [ ] Prometheus metrics + Grafana dashboards + structured logging
+- [ ] Batch processing for large-scale, multi-dataset audits
+- [ ] User-defined fairness metrics beyond the baseline set
+- [ ] Model versioning — track audit results across iterations
+
+---
+
+## Notes
+
+- **Data privacy** — All datasets are processed locally; no data is sent to external services.
+- **Configuration** — Edit `.env` files in `infra/` for custom settings.
+- **Logs** — `docker logs <worker_container_id>`
+
+---
+
+## Contributing
+
+Found a bug or have an improvement? Open an issue or submit a pull request.
+
+---
+
+## License
+
+This project is part of the **Google Solution Challenge 2026**.
+
+---
+
+*Made for fairness. Built for scale.*
