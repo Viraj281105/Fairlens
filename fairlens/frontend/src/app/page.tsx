@@ -71,7 +71,7 @@ export default function Home() {
             setUiState("error");
             if (pollingInterval) clearInterval(pollingInterval);
           }
-        } catch (_err) {
+        } catch {
           setErrorMessage("Network error. Please try again.");
           setUiState("error");
           if (pollingInterval) clearInterval(pollingInterval);
@@ -261,7 +261,7 @@ export default function Home() {
               {taskData?.result && (
                 <div className="bg-gray-50 rounded-lg border border-gray-200 p-4 overflow-auto max-h-96">
                   <pre className="text-xs text-gray-700 whitespace-pre-wrap break-words font-mono">
-                    {JSON.stringify(taskData.result, null, 2)}
+                    {JSON.stringify(taskData.result, null, 2) as unknown as string}
                   </pre>
                 </div>
               )}

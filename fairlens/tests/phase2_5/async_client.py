@@ -56,7 +56,7 @@ class AsyncAPIClient:
                 )
 
     async def create_dataset(self) -> RequestResult:
-        """Simulate dataset upload."""
+        """Simulate dataset upload (now automatically starts audit)."""
         async with httpx.AsyncClient(timeout=self.timeout) as client:
             start = time.time()
             try:
@@ -64,10 +64,18 @@ class AsyncAPIClient:
                 files = {"file": ("test_dataset.csv", b"col1,col2,col3\n1,2,3\n4,5,6")}
                 response = await client.post(f"{self.base_url}/upload", files=files)
                 latency = (time.time() - start) * 1000
+                
+                # Extract data from nested response structure
+                response_json = response.json()
+                is_success = response.status_code == 200 and response_json.get("success", False)
+                
+                # Get the nested data
+                nested_data = response_json.get("data", {})
+                
                 return RequestResult(
-                    success=response.status_code == 200,
+                    success=is_success,
                     status_code=response.status_code,
-                    response_data=response.json(),
+                    response_data=nested_data,  # Return the nested data directly
                     error=None,
                     latency_ms=latency,
                     timestamp=start
@@ -113,17 +121,23 @@ class AsyncAPIClient:
                     timestamp=start
                 )
 
-    async def get_audit_status(self, job_id: str) -> RequestResult:
-        """Get audit task status."""
+    async def get_task_status(self, task_id: str) -> RequestResult:
+        """Get task status by task_id (new API)."""
         async with httpx.AsyncClient(timeout=self.timeout) as client:
             start = time.time()
             try:
-                response = await client.get(f"{self.base_url}/audit/{job_id}")
+                response = await client.get(f"{self.base_url}/status/{task_id}")
                 latency = (time.time() - start) * 1000
+                
+                # Extract nested data from response
+                response_json = response.json()
+                is_success = response.status_code == 200 and response_json.get("success", False)
+                nested_data = response_json.get("data", {})
+                
                 return RequestResult(
-                    success=response.status_code == 200,
+                    success=is_success,
                     status_code=response.status_code,
-                    response_data=response.json(),
+                    response_data=nested_data,
                     error=None,
                     latency_ms=latency,
                     timestamp=start
@@ -139,15 +153,38 @@ class AsyncAPIClient:
                     timestamp=start
                 )
 
+    async def poll_task_until_complete(
+        self,
+        task_id: str,
+        max_wait_sec: float = 120,
+        poll_interval_sec: float = 1.0
+    ) -> Optional[Dict[str, Any]]:
+        """Poll task status by task_id until completion or timeout."""
+        start = time.time()
+        while time.time() - start < max_wait_sec:
+            result = await self.get_task_status(task_id)
+            if not result.success:
+                logger.warning(f"Failed to get status for {task_id}: {result.error}")
+                await asyncio.sleep(poll_interval_sec)
+                continue
+            
+            status = result.response_data.get("status")
+            if status in ["SUCCESS", "FAILURE"]:
+                return result.response_data
+            
+            await asyncio.sleep(poll_interval_sec)
+        
+        return None
+
     async def upload_and_audit(self) -> tuple[RequestResult, Optional[RequestResult]]:
-        """Upload dataset and start audit (combined operation)."""
+        """Upload dataset (now combines upload + audit start)."""
         upload_result = await self.create_dataset()
         if not upload_result.success:
             return upload_result, None
         
-        dataset_id = upload_result.response_data.get("dataset_id")
-        audit_result = await self.start_audit(dataset_id)
-        return upload_result, audit_result
+        # /upload now returns task_id directly, no need for separate /audit/start
+        # Return the upload result twice to satisfy the test's tuple unpacking
+        return upload_result, upload_result
 
     async def concurrent_uploads(self, count: int) -> List[Dict[str, Any]]:
         """Send multiple concurrent uploads."""
@@ -161,6 +198,7 @@ class AsyncAPIClient:
                     "success": r.success,
                     "status_code": r.status_code,
                     "latency_ms": r.latency_ms,
+                    "task_id": r.response_data.get("task_id") if r.success else None,
                     "dataset_id": r.response_data.get("dataset_id") if r.success else None
                 }
             }
@@ -176,26 +214,12 @@ class AsyncAPIClient:
 
     async def poll_status_until_complete(
         self,
-        job_id: str,
+        task_id: str,
         max_wait_sec: float = 120,
         poll_interval_sec: float = 1.0
     ) -> Optional[Dict[str, Any]]:
-        """Poll task status until completion or timeout."""
-        start = time.time()
-        while time.time() - start < max_wait_sec:
-            result = await self.get_audit_status(job_id)
-            if not result.success:
-                logger.warning(f"Failed to get status for {job_id}: {result.error}")
-                await asyncio.sleep(poll_interval_sec)
-                continue
-            
-            status = result.response_data.get("task_status")
-            if status in ["SUCCESS", "FAILURE"]:
-                return result.response_data
-            
-            await asyncio.sleep(poll_interval_sec)
-        
-        return None
+        """Poll task status until completion or timeout (uses /status/{task_id})."""
+        return await self.poll_task_until_complete(task_id, max_wait_sec, poll_interval_sec)
 
     def get_metrics(self) -> Dict[str, Any]:
         """Calculate metrics from all recorded results."""

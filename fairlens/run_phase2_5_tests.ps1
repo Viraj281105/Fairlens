@@ -13,33 +13,33 @@ Set-StrictMode -Version Latest
 function Write-Header {
     param([string]$Message)
     Write-Host ""
-    Write-Host ("╔" + ("═" * 60) + "╗") -ForegroundColor Cyan
-    Write-Host ("║ Phase 2.5 Reliability Testing Suite") -ForegroundColor Cyan
-    Write-Host ("║ $Message") -ForegroundColor Cyan
-    Write-Host ("╚" + ("═" * 60) + "╝") -ForegroundColor Cyan
+    Write-Host ("[" + ("=" * 58) + "]") -ForegroundColor Cyan
+    Write-Host ("| Phase 2.5 Reliability Testing Suite") -ForegroundColor Cyan
+    Write-Host ("| $Message") -ForegroundColor Cyan
+    Write-Host ("[" + ("=" * 58) + "]") -ForegroundColor Cyan
     Write-Host ""
 }
 
 function Write-SubHeader {
     param([string]$Message)
     Write-Host ""
-    Write-Host "━━━ $Message ━━━" -ForegroundColor Yellow
+    Write-Host "--- $Message ---" -ForegroundColor Yellow
     Write-Host ""
 }
 
 function Write-Success {
     param([string]$Message)
-    Write-Host "✓ $Message" -ForegroundColor Green
+    Write-Host "[+] $Message" -ForegroundColor Green
 }
 
 function Write-Error-Custom {
     param([string]$Message)
-    Write-Host "✗ $Message" -ForegroundColor Red
+    Write-Host "[!] $Message" -ForegroundColor Red
 }
 
 function Write-Warning-Custom {
     param([string]$Message)
-    Write-Host "⚠ $Message" -ForegroundColor Yellow
+    Write-Host "[!] $Message" -ForegroundColor Yellow
 }
 
 function Check-Docker {
@@ -132,22 +132,33 @@ function Run-TestModule {
     Write-SubHeader "Running: $Description"
     
     $testsDir = Join-Path $PSScriptRoot "tests\phase2_5"
+    $pythonPath = $PSScriptRoot
+    
+    # Set PYTHONPATH for proper module resolution
+    $env:PYTHONPATH = $pythonPath
+    
     Push-Location $testsDir
     
     try {
-        pytest "$Module" -v --tb=short --color=yes
+        # Run pytest with explicit output to see results
+        & pytest "$Module" -v --tb=line --no-header 2>&1
         
         if ($LASTEXITCODE -eq 0) {
             Write-Success "$Description passed"
             return 0
         }
         else {
-            Write-Error-Custom "$Description failed"
+            Write-Error-Custom "$Description failed (exit code: $LASTEXITCODE)"
             return 1
         }
     }
+    catch {
+        Write-Error-Custom "Error running $Description : $_"
+        return 1
+    }
     finally {
         Pop-Location
+        $env:PYTHONPATH = ""
     }
 }
 
